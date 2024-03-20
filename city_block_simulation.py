@@ -27,7 +27,7 @@ class CityGrid:
                 corner_name = f"C{x}{y}"
                 self.corners[x, y] = Corner(corner_name, x, y)
 
-    def plot_grid(self):
+    def plot_grid(self, current_position=None):
         fig, ax = plt.subplots()
         for x in range(self.width * 2):
             for y in range(self.height * 2):
@@ -41,6 +41,8 @@ class CityGrid:
                 if x % 2 == 1 and y % 2 == 1:  # Mark intersections
                     ax.plot(corner.x - 0.5, corner.y - 0.5, 'ro')  # Red 'o' for intersections
 
+        if current_position:
+            ax.plot(current_position[0], current_position[1], 'g^')
         plt.grid(True)
         plt.show()
 
@@ -113,6 +115,7 @@ class CityGrid:
 
         # Ensure the chosen move is valid
         if chosen_move_index < 0 or chosen_move_index >= len(valid_moves):
+            print("Invalid move chosen.")
             return {"error": "Invalid move chosen."}
 
         # Update player's position based on the chosen move
@@ -129,6 +132,7 @@ class CityGrid:
                 intersection['current_timing'] += intersection['assigned_timing']
 
         self.valid_moves = self.get_valid_moves(self.current_position)
+        print("Valid move chosen.")
         return {
             "current_position": self.current_position,
             "time_cost": time_cost,
@@ -136,10 +140,11 @@ class CityGrid:
         }
 
     def choose_move(self, chosen_move_index):
-        self.process_move(chosen_move_index)
+        return self.process_move(chosen_move_index)
+
 
     def make_move(self, chosen_move_index):
-        result = self.choose_move(chosen_move_index)
+        return self.choose_move(chosen_move_index)
     
     def get_state(self):
         self.valid_moves = self.get_valid_moves(self.current_position)
@@ -157,15 +162,65 @@ class Corner:
     def __repr__(self):
         return f"{self.name}"
 
+
+
+
+# Create class called CityGridGame that make this playable
+class CityGridGame:
+    '''Class to play the CityGrid game. 
+    It takes the width and height of the grid as input and initializes the game. 
+    It has methods to make a move, display the grid, get the current state, 
+    and get the valid moves. It also has a play method to play the game interactively.
+    '''
+    def __init__(self, width, height):
+        self.city_grid = CityGrid(width, height)
+        self.state = self.city_grid.get_state()
+        self.valid_moves = self.state['valid_moves']
+        self.total_time = 0
+
+    def make_move(self, chosen_move_index):
+        move_result = self.city_grid.make_move(chosen_move_index)
+        self.state = self.city_grid.get_state()
+        self.valid_moves = self.state['valid_moves']
+        self.total_time += move_result['time_cost']
+        return move_result
+
+    def display_grid(self):
+        self.city_grid.plot_grid(self.state['current_position'])
+
+    def get_state(self):
+        return self.state
+
+    def get_valid_moves(self):
+        return self.valid_moves
+    
+    def play(self):
+        while True:
+            print(f"Current position: {self.state['current_position']}")
+            print(f"Valid moves: {self.valid_moves}")
+            chosen_move = int(input("Choose a move: "))
+            print('chosen_move:', chosen_move)
+            print('type(chosen_move):', type(chosen_move))
+            move_result = self.make_move(chosen_move)
+            print(f"Move result: {move_result}")
+            if move_result.get('error', None):
+                print(move_result['error'])
+                break
+            self.display_grid()
+            if move_result['current_position'] == self.city_grid.end_position:
+                print(f"Congratulations! You reached the end position in {self.total_time} seconds!")
+                break
+            print(f"Total time: {self.total_time}")
+            print("")
+
+
 # Example usage
-city_grid = CityGrid(4, 7)  # Creates a grid with corners that form X*Y intersections
-city_grid.get_state()
-intersections = json.loads(city_grid.output_intersections())
 
 #%%
-city_grid.get_state()
-city_grid.make_move(1)
-city_grid.get_state()
-city_grid.plot_grid()
+# Play game
+NUM_X_INTERSECTIONS = 7
+NUM_Y_INTERSECTIONS = 4
+game = CityGridGame(width=NUM_X_INTERSECTIONS, height=NUM_Y_INTERSECTIONS)
+game.play()
 
 #%%
