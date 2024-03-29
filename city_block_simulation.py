@@ -42,7 +42,7 @@ class CityGrid:
                     ax.plot(corner.x - 0.5, corner.y - 0.5, 'ro')  # Red 'o' for intersections
 
         if current_position:
-            ax.plot(current_position[0], current_position[1], 'g^')
+            ax.plot(current_position[0], current_position[1], 'g^', markersize=12)
         plt.grid(True)
         plt.show()
 
@@ -85,29 +85,32 @@ class CityGrid:
     def get_valid_moves(self, current_position):
         x, y = current_position
         valid_moves = []
-        # Find the parent intersection for the current position
         for intersection in self.intersections:
             if any(x == cx and y == cy for (cx, cy) in intersection['children']):
                 valid_direction = intersection['valid_direction']
                 current_timing = intersection['current_timing']
-                # Check each possible move from the current position
+                assigned_timing = intersection['assigned_timing']
                 for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Left, Right, Down, Up
                     adj_x, adj_y = x + dx, y + dy
                     if 0 <= adj_x < self.width * 2 and 0 <= adj_y < self.height * 2:
-                        # Determine if the move is within the same intersection
                         if (x // 2 == adj_x // 2) and (y // 2 == adj_y // 2):
                             if (valid_direction == 'x' and dx != 0) or (valid_direction == 'y' and dy != 0):
-                                move_time_cost = INTRA_MOVE  # Moving in the valid direction within the same intersection
+                                hidden_time_cost = INTRA_MOVE
+                                if current_timing <= 5:
+                                    hidden_time_cost += current_timing + assigned_timing
+                                move_symbol = 'Walk' if current_timing > 10 else str(current_timing)
                             else:
-                                move_time_cost = current_timing + INTRA_MOVE  # Moving against the valid direction
+                                hidden_time_cost = current_timing + INTRA_MOVE
+                                move_symbol = 'Stop'
                         else:
-                            move_time_cost = INTER_MOVE  # Moving between different intersections
-                        valid_moves.append(((adj_x, adj_y), move_time_cost))
+                            hidden_time_cost = INTER_MOVE
+                            move_symbol = 'Block'
+                        valid_moves.append(((adj_x, adj_y), move_symbol, hidden_time_cost))
                 break
         return valid_moves
     
     def get_valid_moves_data(self):
-        return [(i, move) for i, move in enumerate(self.valid_moves)]
+        return list(enumerate(self.valid_moves))
     
     def process_move(self, chosen_move_index):
         # Get the current list of valid moves
@@ -121,7 +124,7 @@ class CityGrid:
         # Update player's position based on the chosen move
         move = valid_moves[chosen_move_index]
         self.current_position = move[0]  # Update to the new position from the chosen move
-        time_cost = move[1]
+        time_cost = move[2]
         self.total_time += time_cost
 
         # Update timings and directions
@@ -197,7 +200,7 @@ class CityGridGame:
     def play(self):
         while True:
             print(f"Current position: {self.state['current_position']}")
-            print(f"Valid moves: {self.valid_moves}")
+            print(f"Valid moves: {[(index, (coords, action)) for index, (coords, action, hidden_time_cost) in self.valid_moves]}")
             chosen_move = int(input("Choose a move: "))
             print('chosen_move:', chosen_move)
             print('type(chosen_move):', type(chosen_move))
@@ -218,9 +221,11 @@ class CityGridGame:
 
 #%%
 # Play game
-NUM_X_INTERSECTIONS = 7
+NUM_X_INTERSECTIONS = 3
 NUM_Y_INTERSECTIONS = 4
 game = CityGridGame(width=NUM_X_INTERSECTIONS, height=NUM_Y_INTERSECTIONS)
 game.play()
 
 #%%
+city_grid = CityGrid(7,4)
+intersections = json.loads(city_grid.output_intersections())
